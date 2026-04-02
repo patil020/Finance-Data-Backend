@@ -11,6 +11,7 @@ import com.financeapp.exception.BadRequestException;
 import com.financeapp.exception.ResourceNotFoundException;
 import com.financeapp.service.UserService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -22,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UserServiceImpl implements UserService {
 
     private final UserDao userDao;
@@ -32,7 +34,9 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public UserResponseDto createUser(UserRequestDto requestDto) {
         String email = requestDto.getEmail().trim().toLowerCase();
+        log.info("Creating new user with email: {}", email);
         if (userDao.existsByEmailIgnoreCase(email)) {
+            log.warn("User registration failed: Email already exists - {}", email);
             throw new BadRequestException("Email is already registered.");
         }
 
@@ -44,6 +48,7 @@ public class UserServiceImpl implements UserService {
                 .status(requestDto.getStatus())
                 .build();
         User savedUser = userDao.save(user);
+        log.info("User created successfully with ID: {} and email: {}", savedUser.getId(), email);
         return modelMapper.map(savedUser, UserResponseDto.class);
     }
 

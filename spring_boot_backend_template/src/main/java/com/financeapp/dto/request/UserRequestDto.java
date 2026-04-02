@@ -1,5 +1,6 @@
 package com.financeapp.dto.request;
 
+import com.financeapp.util.ValidPassword;
 import com.financeapp.enums.Role;
 import com.financeapp.enums.UserStatus;
 import jakarta.validation.constraints.Email;
@@ -23,7 +24,7 @@ public class UserRequestDto {
     private String email;
 
     @NotBlank(message = "Password is required")
-    @Size(min = 8, max = 100, message = "Password must be between 8 and 100 characters")
+    @ValidPassword
     private String password;
 
     @NotNull(message = "Role is required")
