@@ -55,6 +55,14 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.FORBIDDEN, ex.getMessage(), request.getRequestURI(), null);
     }
 
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<ApiErrorResponseDto> handleInvalidCredentials(
+            InvalidCredentialsException ex, HttpServletRequest request) {
+        Map<String, String> metadata = new LinkedHashMap<>();
+        metadata.put("remainingAttempts", String.valueOf(ex.getRemainingAttempts()));
+        return buildResponse(HttpStatus.UNAUTHORIZED, ex.getMessage(), request.getRequestURI(), metadata);
+    }
+
     @ExceptionHandler({BadCredentialsException.class, UsernameNotFoundException.class})
     public ResponseEntity<ApiErrorResponseDto> handleAuthenticationFailure(
             Exception ex, HttpServletRequest request) {
