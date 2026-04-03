@@ -20,7 +20,6 @@ import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -30,7 +29,6 @@ import java.time.LocalDate;
 import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Integration tests for Finance Data Backend API
@@ -159,6 +157,53 @@ public class FinanceDataBackendApplicationIntegrationTests {
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.message").value("Invalid credentials."));
+    }
+
+    @Test
+    @DisplayName("Should show remaining attempts on invalid login")
+    public void testLoginShowsRemainingAttempts() throws Exception {
+        User loginUser = createTestUser("remaining-attempts@test.com", "Remain@123", Role.VIEWER, UserStatus.ACTIVE);
+
+        LoginRequestDto request = new LoginRequestDto();
+        request.setEmail(loginUser.getEmail());
+        request.setPassword("WrongPassword@123");
+
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Invalid credentials."))
+                .andExpect(jsonPath("$.validationErrors.remainingAttempts").value("4"));
+    }
+
+    @Test
+    @DisplayName("Should lock account after 5 failed login attempts")
+    public void testLoginLockAfterFiveFailedAttempts() throws Exception {
+        User loginUser = createTestUser("lock-user@test.com", "LockUser@123", Role.VIEWER, UserStatus.ACTIVE);
+
+        LoginRequestDto wrongPasswordRequest = new LoginRequestDto();
+        wrongPasswordRequest.setEmail(loginUser.getEmail());
+        wrongPasswordRequest.setPassword("WrongPassword@123");
+
+        for (int attempt = 1; attempt <= 5; attempt++) {
+            int expectedRemainingAttempts = 5 - attempt;
+            mockMvc.perform(post("/api/auth/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(wrongPasswordRequest)))
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(jsonPath("$.message").value("Invalid credentials."))
+                    .andExpect(jsonPath("$.validationErrors.remainingAttempts").value(String.valueOf(expectedRemainingAttempts)));
+        }
+
+        LoginRequestDto correctPasswordRequest = new LoginRequestDto();
+        correctPasswordRequest.setEmail(loginUser.getEmail());
+        correctPasswordRequest.setPassword("LockUser@123");
+
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(correctPasswordRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Account is locked due to too many failed login attempts."));
     }
 
     @Test

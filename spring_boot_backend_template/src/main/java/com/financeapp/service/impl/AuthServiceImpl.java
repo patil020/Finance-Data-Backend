@@ -10,11 +10,14 @@ import com.financeapp.enums.Role;
 import com.financeapp.enums.UserStatus;
 import com.financeapp.exception.BadRequestException;
 import com.financeapp.exception.InactiveUserException;
+import com.financeapp.exception.InvalidCredentialsException;
 import com.financeapp.security.JwtUtil;
+import com.financeapp.security.LoginAttemptService;
 import com.financeapp.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -30,6 +33,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
+    private final LoginAttemptService loginAttemptService;
     private final ModelMapper modelMapper;
 
     @Override
@@ -66,9 +70,18 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public AuthResponseDto login(LoginRequestDto requestDto) {
         String email = requestDto.getEmail().trim().toLowerCase();
+
+        if (loginAttemptService.isAccountLocked(email)) {
+            throw new BadRequestException("Account is locked due to too many failed login attempts.");
+        }
+
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(email, requestDto.getPassword()));
+        } catch (BadCredentialsException ex) {
+            loginAttemptService.loginFailed(email);
+            int remainingAttempts = loginAttemptService.getRemainingAttempts(email);
+            throw new InvalidCredentialsException(remainingAttempts);
         } catch (DisabledException ex) {
             throw new InactiveUserException("Inactive user cannot log in.");
         }
@@ -79,6 +92,8 @@ public class AuthServiceImpl implements AuthService {
         if (user.getStatus() == UserStatus.INACTIVE) {
             throw new InactiveUserException("Inactive user cannot log in.");
         }
+
+        loginAttemptService.loginSucceeded(email);
 
         UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()
                 .username(user.getEmail())
