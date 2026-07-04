@@ -1,0 +1,7 @@
+target/
+*.log
+hs_err_pid*.log
+.metadata/
+.idea/
+.vscode/
+*.iml

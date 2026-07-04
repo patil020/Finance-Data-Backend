@@ -1,0 +1,172 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-auth
+  namespace: finance-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql-auth
+  template:
+    metadata:
+      labels:
+        app: mysql-auth
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        ports:
+        - containerPort: 3306
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: finance-app-secrets
+              key: MYSQL_ROOT_PASSWORD
+        - name: MYSQL_DATABASE
+          value: "finance_auth"
+        volumeMounts:
+        - name: mysql-auth-storage
+          mountPath: /var/lib/mysql
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+      volumes:
+      - name: mysql-auth-storage
+        persistentVolumeClaim:
+          claimName: mysql-auth-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-auth
+  namespace: finance-app
+spec:
+  selector:
+    app: mysql-auth
+  ports:
+  - port: 3306
+    targetPort: 3306
+  type: ClusterIP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-user
+  namespace: finance-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql-user
+  template:
+    metadata:
+      labels:
+        app: mysql-user
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        ports:
+        - containerPort: 3306
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: finance-app-secrets
+              key: MYSQL_ROOT_PASSWORD
+        - name: MYSQL_DATABASE
+          value: "finance_users"
+        volumeMounts:
+        - name: mysql-user-storage
+          mountPath: /var/lib/mysql
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+      volumes:
+      - name: mysql-user-storage
+        persistentVolumeClaim:
+          claimName: mysql-user-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-user
+  namespace: finance-app
+spec:
+  selector:
+    app: mysql-user
+  ports:
+  - port: 3306
+    targetPort: 3306
+  type: ClusterIP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-record
+  namespace: finance-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql-record
+  template:
+    metadata:
+      labels:
+        app: mysql-record
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        ports:
+        - containerPort: 3306
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: finance-app-secrets
+              key: MYSQL_ROOT_PASSWORD
+        - name: MYSQL_DATABASE
+          value: "finance_records"
+        volumeMounts:
+        - name: mysql-record-storage
+          mountPath: /var/lib/mysql
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+      volumes:
+      - name: mysql-record-storage
+        persistentVolumeClaim:
+          claimName: mysql-record-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-record
+  namespace: finance-app
+spec:
+  selector:
+    app: mysql-record
+  ports:
+  - port: 3306
+    targetPort: 3306
+  type: ClusterIP
