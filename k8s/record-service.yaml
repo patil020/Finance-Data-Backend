@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: record-service
+  namespace: finance-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: record-service
+  template:
+    metadata:
+      labels:
+        app: record-service
+    spec:
+      containers:
+      - name: record-service
+        image: finance-app/record-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8083
+        env:
+        - name: SPRING_APPLICATION_NAME
+          value: record-service
+        - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
+          valueFrom:
+            configMapKeyRef:
+              name: finance-app-config
+              key: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:mysql://mysql-record:3306/finance_records?createDatabaseIfNotExist=true&useSSL=false"
+        - name: SPRING_DATASOURCE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: finance-app-secrets
+              key: SPRING_DATASOURCE_USERNAME
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: finance-app-secrets
+              key: SPRING_DATASOURCE_PASSWORD
+        - name: SPRING_DATA_REDIS_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: finance-app-config
+              key: SPRING_DATA_REDIS_HOST
+        - name: SPRING_DATA_REDIS_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: finance-app-config
+              key: SPRING_DATA_REDIS_PORT
+        - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+          valueFrom:
+            configMapKeyRef:
+              name: finance-app-config
+              key: SPRING_KAFKA_BOOTSTRAP_SERVERS
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8083
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8083
+          initialDelaySeconds: 10
+          periodSeconds: 5
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: record-service
+  namespace: finance-app
+spec:
+  selector:
+    app: record-service
+  ports:
+  - port: 8083
+    targetPort: 8083
+  type: ClusterIP
